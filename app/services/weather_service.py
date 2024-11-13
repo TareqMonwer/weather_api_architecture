@@ -1,6 +1,11 @@
+import datetime
+import json
 from app.services.cache_services.redis_cache_service import RedisCacheService
 from app.services.external_api.http_weather_fetcher import HttpWeatherFetcher
 from app.services.weather_fetcher_abc import WeatherFetcherAbc
+from app.services.weather_report_service.weather_report_service import (
+    WeatherReportService,
+)
 
 
 class WeatherService:
@@ -34,4 +39,7 @@ class WeatherService:
             await RedisCacheService().set(city, weather)
 
             # TODO: perform s3 upload and event publish task here.
+            file_name = str(datetime.datetime.now().date()) + city
+            json_bytes = json.dumps(weather).encode("utf-8")
+            WeatherReportService().store_weather_data(file_name, json_bytes)
         return weather
