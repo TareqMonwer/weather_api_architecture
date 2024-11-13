@@ -1,4 +1,5 @@
-from app.services.http_weather_fetcher import HttpWeatherFetcher
+from app.services.cache_services.redis_cache_service import RedisCacheService
+from app.services.external_api.http_weather_fetcher import HttpWeatherFetcher
 from app.services.weather_fetcher_abc import WeatherFetcherAbc
 
 
@@ -17,10 +18,20 @@ class WeatherService:
             case _:
                 return self.set_http_fetcher()
 
-    async def get(self, city: str):
-        if not self.__fetcher:
-            raise ValueError(
-                "WeatherService.set_<type>_fetcher() must be called \
-                before using WeatherService.get()"
-            )
+    async def get_weather(self, city: str):
         return await self.__fetcher.get(city)
+
+    async def get(self, city: str):
+        is_cached = await RedisCacheService().cache_exists(city)
+
+        if is_cached:
+            return await RedisCacheService().get(city)
+
+        fetcher: HttpWeatherFetcher = self.__get_fetcher("http")
+        weather = await fetcher.get(city)
+
+        if weather and weather.get("list"):
+            await RedisCacheService().set(city, weather)
+
+            # TODO: perform s3 upload and event publish task here.
+        return weather

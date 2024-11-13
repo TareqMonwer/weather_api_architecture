@@ -31,7 +31,9 @@ class RedisCacheService(CacheServiceAbc):
 
     async def set(self, key: str, value: Any) -> None:
         try:
-            await redis_client.set(key, str(value).encode())
+            if not isinstance(value, str):
+                value = json.dumps(value)
+
             await RedisCacheService.__client.setex(
                 key, timedelta(minutes=5), value
             )
